@@ -7,7 +7,8 @@ function TapToEarn() {
   const [user, setUser] = useState({ dubaiCoin: 0, energy: 1000, maxEnergy: 1000, level: 1 });
   const canvasRef = useRef(null);
   const coinsRef = useRef([]);
-  let scene, coinMaterial;
+  const sceneRef = useRef(null); // scene uchun useRef
+  const coinMaterialRef = useRef(null); // coinMaterial uchun useRef
 
   const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '123';
 
@@ -34,10 +35,10 @@ function TapToEarn() {
 
   const addCoin = () => {
     if (coinsRef.current.length >= 20) return;
-    const coin = new THREE.Sprite(coinMaterial);
+    const coin = new THREE.Sprite(coinMaterialRef.current);
     coin.scale.set(0.2, 0.2, 0.2);
     coin.position.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 0);
-    scene.add(coin);
+    sceneRef.current.add(coin); // sceneRef.current dan foydalanamiz
     coinsRef.current.push({
       sprite: coin,
       velocity: new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.05, 0),
@@ -46,7 +47,7 @@ function TapToEarn() {
   };
 
   useEffect(() => {
-    scene = new THREE.Scene();
+    sceneRef.current = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -63,7 +64,7 @@ function TapToEarn() {
         const model = gltf.scene;
         model.scale.set(0.01, 0.01, 0.01);
         model.position.set(0, -1, 0);
-        scene.add(model);
+        sceneRef.current.add(model);
       },
       undefined,
       (error) => {
@@ -72,13 +73,13 @@ function TapToEarn() {
     );
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
+    sceneRef.current.add(ambientLight);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
     directionalLight.position.set(5, 5, 5);
-    scene.add(directionalLight);
+    sceneRef.current.add(directionalLight);
     const pointLight = new THREE.PointLight(0xffffff, 0.5);
     pointLight.position.set(0, 2, 2);
-    scene.add(pointLight);
+    sceneRef.current.add(pointLight);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -86,7 +87,7 @@ function TapToEarn() {
     camera.position.z = 3;
 
     const coinTexture = new THREE.TextureLoader().load('/coin.png');
-    coinMaterial = new THREE.SpriteMaterial({ map: coinTexture });
+    coinMaterialRef.current = new THREE.SpriteMaterial({ map: coinTexture });
 
     const animateCoins = () => {
       coinsRef.current = coinsRef.current.filter((coin) => {
@@ -95,7 +96,7 @@ function TapToEarn() {
         coin.sprite.scale.set(0.2 * coin.life, 0.2 * coin.life, 0.2 * coin.life);
         coin.sprite.rotation.z += 0.1;
         if (coin.life <= 0) {
-          scene.remove(coin.sprite);
+          sceneRef.current.remove(coin.sprite);
           return false;
         }
         return true;
@@ -107,7 +108,7 @@ function TapToEarn() {
       animationId = requestAnimationFrame(animate);
       controls.update();
       animateCoins();
-      renderer.render(scene, camera);
+      renderer.render(sceneRef.current, camera);
     };
     animate();
 
