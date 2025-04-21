@@ -9,10 +9,8 @@ function TapToEarn() {
   const coinsRef = useRef([]);
   let scene, coinMaterial;
 
-  // Telegram Web App’dan userId olish
-  const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '123'; // Agar Telegram Web App bo‘lmasa, 123 ishlatiladi
+  const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '123';
 
-  // Backend bilan bog‘lanish
   const handleTap = async () => {
     try {
       const response = await fetch('https://dubai-city-backend.onrender.com/api/tap', {
@@ -34,29 +32,26 @@ function TapToEarn() {
     }
   };
 
-  // Tangalar effektini qo‘shish
   const addCoin = () => {
-    if (coinsRef.current.length >= 20) return; // Maksimum 20 tanga
+    if (coinsRef.current.length >= 20) return;
     const coin = new THREE.Sprite(coinMaterial);
     coin.scale.set(0.2, 0.2, 0.2);
     coin.position.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 0);
     scene.add(coin);
     coinsRef.current.push({
       sprite: coin,
-      velocity: new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.05, 0), // Tasodifiy X harakati
+      velocity: new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.05, 0),
       life: 1,
     });
   };
 
-  // 3D animatsiya sozlamalari
   useEffect(() => {
     scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Mobil moslashuv uchun
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    // Burj Khalifa modelini yuklash
     const loader = new GLTFLoader();
     loader.load(
       '/burjKhalifa.glb',
@@ -76,33 +71,29 @@ function TapToEarn() {
       }
     );
 
-    // Yoritish
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
     directionalLight.position.set(5, 5, 5);
     scene.add(directionalLight);
-    const pointLight = new THREE.PointLight(0xffffff, 0.5); // Dinamik yoritish
+    const pointLight = new THREE.PointLight(0xffffff, 0.5);
     pointLight.position.set(0, 2, 2);
     scene.add(pointLight);
 
-    // OrbitControls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     camera.position.z = 3;
 
-    // Tangalar uchun material
     const coinTexture = new THREE.TextureLoader().load('/coin.png');
     coinMaterial = new THREE.SpriteMaterial({ map: coinTexture });
 
-    // Tangalar animatsiyasi
     const animateCoins = () => {
       coinsRef.current = coinsRef.current.filter((coin) => {
         coin.sprite.position.add(coin.velocity);
         coin.life -= 0.02;
         coin.sprite.scale.set(0.2 * coin.life, 0.2 * coin.life, 0.2 * coin.life);
-        coin.sprite.rotation.z += 0.1; // Tangalarni aylantirish
+        coin.sprite.rotation.z += 0.1;
         if (coin.life <= 0) {
           scene.remove(coin.sprite);
           return false;
@@ -111,7 +102,6 @@ function TapToEarn() {
       });
     };
 
-    // Animatsiya tsikli
     let animationId;
     const animate = () => {
       animationId = requestAnimationFrame(animate);
@@ -121,7 +111,6 @@ function TapToEarn() {
     };
     animate();
 
-    // Oyna o‘lchami o‘zgarganda yangilash
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -129,11 +118,10 @@ function TapToEarn() {
     };
     window.addEventListener('resize', handleResize);
 
-    // Tozalash
     return () => {
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationId);
-      renderer.dispose(); // Resurslarni tozalash
+      renderer.dispose();
     };
   }, []);
 
