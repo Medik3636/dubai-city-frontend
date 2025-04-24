@@ -1,41 +1,14 @@
-const TelegramBot = require('node-telegram-bot-api');
-const express = require('express');
-const cors = require('cors');
-const { tap } = require('./controllers/tapToEarn');
-
-require('dotenv').config();
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public')); // Statik fayllar uchun (masalan, favicon.ico)
-
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
-const PORT = process.env.PORT || 3004; // Render’da PORT o‘zgaruvchisi ishlatiladi
-
-app.get('/', (req, res) => res.send('Bot ishlayapti!'));
-
-app.post('/api/tap', async (req, res) => {
-  const { userId } = req.body;
-  if (!userId) {
-    return res.status(400).json({ error: 'userId talab qilinadi' });
-  }
-  const ctx = { from: { id: userId }, reply: (msg) => console.log(msg) };
-  await tap(ctx);
-  const users = JSON.parse(require('fs').readFileSync('./data/users.json'));
-  res.json({ user: users.users[userId] });
-});
-
-bot.onText(/\/start/, (msg) => {
-  const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Dubai City Botga xush kelibsiz!', {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: 'O‘yinni boshlash', web_app: { url: 'https://dubai-city-frontend.onrender.com' } }],
-      ],
-    },
-  });
-});
-
-app.listen(PORT, () => console.log(`Server http://localhost:${PORT} da ishlamoqda`));
-console.log('Bot ishga tushdi');
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dubai City - Tap to Earn</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

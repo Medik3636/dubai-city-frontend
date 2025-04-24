@@ -1,153 +1,163 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import './TapToEarn.css';
 
-function TapToEarn() {
-  const [user, setUser] = useState({ dubaiCoin: 0, energy: 1000, maxEnergy: 1000, level: 1 });
-  const canvasRef = useRef(null);
-  const coinsRef = useRef([]);
-  const sceneRef = useRef(null); // scene uchun useRef
-  const coinMaterialRef = useRef(null); // coinMaterial uchun useRef
-
-  const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '123';
-
-  const handleTap = async () => {
-    try {
-      const response = await fetch('https://dubai-city-backend.onrender.com/api/tap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP xato: ${response.status}`);
-      }
-      const data = await response.json();
-      if (!data.user) {
-        throw new Error('Backenddan "user" ma\'lumotlari qaytmadi');
-      }
-      setUser(data.user);
-      addCoin();
-    } catch (error) {
-      console.error('Tap error:', error);
-    }
-  };
-
-  const addCoin = () => {
-    if (coinsRef.current.length >= 20) return;
-    const coin = new THREE.Sprite(coinMaterialRef.current);
-    coin.scale.set(0.2, 0.2, 0.2);
-    coin.position.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 0);
-    sceneRef.current.add(coin); // sceneRef.current dan foydalanamiz
-    coinsRef.current.push({
-      sprite: coin,
-      velocity: new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.05, 0),
-      life: 1,
-    });
-  };
+const TapToEarn = () => {
+  const mountRef = useRef(null);
+  const sceneRef = useRef(null);
+  const [userData, setUserData] = useState({ dubaiCoin: 0, energy: 1000, level: 1 });
+  const [error, setError] = useState('');
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
-    sceneRef.current = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    window.Telegram.WebApp.ready();
+    const id = window.Telegram.WebApp.initDataUnsafe.user?.id;
+    if (!id) {
+      setError('Foydalanuvchi ID topilmadi');
+      return;
+    }
+    setUserId(id);
 
+    // Three.js sahna sozlamalari
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    mountRef.current.appendChild(renderer.domElement);
+
+    // Fon rasmi
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+      '/ocean-background.jpg',
+      (texture) => {
+        scene.background = texture;
+      },
+      undefined,
+      (error) => {
+        console.error('Fon rasmi yuklashda xato:', error);
+        setError('Fon rasmi yuklanmadi');
+      }
+    );
+
+    // Burj Khalifa modeli
     const loader = new GLTFLoader();
     loader.load(
       '/burjKhalifa.glb',
       (gltf) => {
-        if (!gltf.scene) {
-          console.error('Modelda scene topilmadi');
-          return;
-        }
         const model = gltf.scene;
         model.scale.set(0.01, 0.01, 0.01);
         model.position.set(0, -1, 0);
-        sceneRef.current.add(model);
+        scene.add(model);
       },
       undefined,
       (error) => {
         console.error('Model yuklashda xato:', error);
+        setError('Model yuklanmadi');
       }
     );
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    sceneRef.current.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    directionalLight.position.set(5, 5, 5);
-    sceneRef.current.add(directionalLight);
-    const pointLight = new THREE.PointLight(0xffffff, 0.5);
-    pointLight.position.set(0, 2, 2);
-    sceneRef.current.add(pointLight);
+    // Yoritish
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(0, 1, 1);
+    scene.add(directionalLight);
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    camera.position.z = 3;
+    camera.position.z = 5;
 
-    const coinTexture = new THREE.TextureLoader().load('/coin.png');
-    coinMaterialRef.current = new THREE.SpriteMaterial({ map: coinTexture });
-
-    const animateCoins = () => {
-      coinsRef.current = coinsRef.current.filter((coin) => {
-        coin.sprite.position.add(coin.velocity);
-        coin.life -= 0.02;
-        coin.sprite.scale.set(0.2 * coin.life, 0.2 * coin.life, 0.2 * coin.life);
-        coin.sprite.rotation.z += 0.1;
-        if (coin.life <= 0) {
-          sceneRef.current.remove(coin.sprite);
-          return false;
-        }
-        return true;
-      });
-    };
-
-    let animationId;
+    // Animatsiya
     const animate = () => {
-      animationId = requestAnimationFrame(animate);
-      controls.update();
-      animateCoins();
-      renderer.render(sceneRef.current, camera);
+      if (!sceneRef.current) return; // Sahna o‘chirilgan bo‘lsa animatsiyani to‘xtatish
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
     };
     animate();
 
+    // Dastlabki ma'lumotlarni yuklash
+    const loadUserData = async () => {
+      if (!id) return;
+      try {
+        const response = await fetch('https://dubai-city-backend.onrender.com/api/tap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: id })
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Server xatosi: ${response.status} - ${errorText}`);
+        }
+        const data = await response.json();
+        if (data.user) {
+          setUserData(data.user);
+        } else {
+          throw new Error('Foydalanuvchi ma\'lumotlari topilmadi');
+        }
+      } catch (err) {
+        console.error('Ma\'lumot yuklashda xato:', err);
+        setError('Ma\'lumot yuklashda xato: ' + err.message);
+      }
+    };
+    loadUserData();
+
     const handleResize = () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
     };
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(animationId);
+      mountRef.current.removeChild(renderer.domElement);
       renderer.dispose();
+      sceneRef.current = null;
     };
   }, []);
 
+  const handleTap = async () => {
+    if (!userId) {
+      setError('Foydalanuvchi ID topilmadi');
+      return;
+    }
+
+    try {
+      const response = await fetch('https://dubai-city-backend.onrender.com/api/tap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server xatosi: ${response.status} - ${errorText}`);
+      }
+      const data = await response.json();
+      if (data.user) {
+        setUserData(data.user);
+        setError('');
+      } else {
+        throw new Error('Foydalanuvchi ma\'lumotlari topilmadi');
+      }
+    } catch (err) {
+      console.error('Teginishda xato:', err);
+      setError('Teginishda xato: ' + err.message);
+    }
+  };
+
   return (
-    <div
-      className="flex flex-col items-center p-4 text-white min-h-screen"
-      style={{
-        backgroundImage: `url('/ocean-background.jpg')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
-    >
-      <canvas ref={canvasRef} className="w-full h-64 mb-4" />
-      <h1 className="text-2xl mb-4">Dubai City - Tap to Earn</h1>
-      <p>DubaiCoin: {user.dubaiCoin}</p>
-      <p>Energiya: {user.energy}/{user.maxEnergy}</p>
-      <p>Daraja: {user.level}</p>
-      <button
-        onClick={handleTap}
-        className="mt-4 px-6 py-2 bg-blue-600 rounded-lg text-white"
-      >
-        Tap!
-      </button>
+    <div className="tap-to-earn">
+      <div ref={mountRef} className="three-scene"></div>
+      <div className="overlay">
+        <h1>Dubai City - Tap to Earn</h1>
+        <p>DubaiCoin: {userData.dubaiCoin}</p>
+        <p>Energy: {userData.energy}</p>
+        <p>Level: {userData.level}</p>
+        {error && <p className="error">{error}</p>}
+        <button onClick={handleTap}>Tap!</button>
+      </div>
     </div>
   );
-}
+};
 
 export default TapToEarn;

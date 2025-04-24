@@ -1,9 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import TapToEarn from './TapToEarn';
+import App from './App.jsx';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
   <React.StrictMode>
-    <TapToEarn />
+    <App />
   </React.StrictMode>
 );
